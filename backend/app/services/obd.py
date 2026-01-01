@@ -16,6 +16,7 @@ class OBDService:
         # Use settings for retry/backoff
         self.backoff_time = settings.supervision.backoff_seconds
         self.simulation_mode = settings.obd.simulation
+        self.polling_interval = settings.obd.polling_interval
 
         # PIDs to poll
         self.commands = [
