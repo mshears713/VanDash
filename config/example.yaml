@@ -1,0 +1,23 @@
+mode: operational
+network:
+  ssid: "VanDash-Hub"
+  password: "dashboard-access"
+  fixed_ip: "192.168.4.1"
+
+backend:
+  port: 80
+  log_level: INFO
+
+camera_rear:
+  device_index: 0
+  resolution: [640, 480]
+  simulation: false
+
+obd:
+  port: null # null for auto-discovery
+  simulation: false
+  polling_interval: 0.5
+
+supervision:
+  max_retries: 3
+  backoff_seconds: 5

@@ -1,0 +1,16 @@
+[Unit]
+Description=VanDash Backend Service
+After=network.target
+
+[Service]
+Type=simple
+User=pi
+WorkingDirectory=/home/pi/VanDash/backend
+ExecStart=/home/pi/.local/bin/uv run uvicorn app.main:app --host 192.168.4.1 --port 80
+Restart=always
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
