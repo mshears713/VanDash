@@ -42,12 +42,6 @@ class OBDService:
 
     def _poll_loop(self):
         while self.is_running:
-            if not health_service.should_retry("obd"):
-                logger.log("OBD", "Supervision limit reached. Polling suspended.", level="CRITICAL",
-                           reason="Subsystem reached max retry limit",
-                           action="Monitoring suspended until manual reset")
-                break
-
             # Intent Check: Should we use simulation?
             use_sim = self.simulation_mode
             
@@ -70,12 +64,6 @@ class OBDService:
                 health_service.update_status("obd", "ACTIVE")
                 self._poll_data()
             elif use_sim:
-                current_sub = health_service.subsystems.get("obd")
-                if current_sub and current_sub.state == "FAULTY":
-                    # If someone forced a failure, stay failed
-                    time.sleep(5)
-                    continue
-                
                 health_service.update_status("obd", "ACTIVE", message="Simulation Mode")
                 self._simulate_data()
             else:

@@ -80,6 +80,15 @@ async def get_log_sources():
 async def tail_logs(source: Optional[str] = None, lines: int = 50, level: Optional[str] = None):
     return dash_logger.tail(source, lines, level)
 
+@app.get("/api/system/telemetry")
+async def get_system_telemetry():
+    return system_service.get_telemetry()
+
+@app.post("/api/system/reset/{subsystem}")
+async def reset_subsystem(subsystem: str):
+    health_service.reset_subsystem(subsystem)
+    return {"status": "reset_triggered", "subsystem": subsystem}
+
 @app.get("/api/obd/latest")
 async def get_obd_latest():
     return obd_service.get_latest()

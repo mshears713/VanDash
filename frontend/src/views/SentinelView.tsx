@@ -20,61 +20,91 @@ interface HealthData {
     subsystems: Record<string, SubsystemStatus>;
 }
 
-export const DiagnosticsView: React.FC = () => {
+export const SentinelView: React.FC = () => {
     const [health, setHealth] = useState<HealthData | null>(null);
     const [logs, setLogs] = useState<LogEntry[]>([]);
     const [source, setSource] = useState<string>('');
-    const [sources, setSources] = useState<string[]>([]);
+    const [sources, setSources] = useState<string[]>([]); // Keep sources state
+
+    const handleReset = async (subsystem: string) => {
+        try {
+            await fetch(`/api/system/reset/${subsystem}`, { method: 'POST' });
+        } catch (e) {
+            console.error("Reset failed", e);
+        }
+    };
 
     useEffect(() => {
-        const fetchData = async () => {
+        const fetchHealth = async () => {
             try {
-                const hRes = await fetch('/api/health');
-                if (hRes.ok) setHealth(await hRes.json());
+                const res = await fetch('/api/health');
+                if (res.ok) setHealth(await res.json());
+            } catch (err) {
+                console.error("Failed to fetch health data", err);
+            }
+        };
+        fetchHealth();
+        const interval = setInterval(fetchHealth, 2000);
+        return () => clearInterval(interval);
+    }, []);
 
+    useEffect(() => {
+        const fetchLogsAndSources = async () => {
+            try {
                 const sRes = await fetch('/api/logs/sources');
                 if (sRes.ok) setSources(await sRes.json());
 
-                const lRes = await fetch(`/api/logs/tail${source ? `?source=${source}` : ''}`);
-                if (lRes.ok) setLogs(await lRes.json());
+                const url = source ? `/api/logs/tail?source=${source}` : '/api/logs/tail';
+                const res = await fetch(url);
+                if (res.ok) setLogs(await res.json());
             } catch (err) {
-                console.error(err);
+                console.error("Failed to fetch logs or sources", err);
             }
         };
-
-        fetchData();
-        const interval = setInterval(fetchData, 3000);
+        fetchLogsAndSources();
+        const interval = setInterval(fetchLogsAndSources, 2000);
         return () => clearInterval(interval);
     }, [source]);
 
     return (
-        <div className="diagnostics-view" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', height: '100%', overflow: 'hidden' }}>
-            <section className="glass-panel" style={{ padding: '16px', overflowY: 'auto' }}>
-                <h3 style={{ marginBottom: '16px' }}>Subsystems</h3>
+        <div className="diagnostics-view" style={{ width: '100%', height: '100%', padding: '20px', display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '20px', overflow: 'hidden' }}>
+            <section className="glass-panel" style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '16px', overflowY: 'auto' }}>
+                <h3 style={{ borderBottom: '1px solid var(--glass-border)', paddingBottom: '8px' }}>Sentinel</h3>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                     {health && Object.entries(health.subsystems).map(([name, status]) => (
-                        <div key={name} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px', background: 'rgba(255,255,255,0.05)', borderRadius: '8px' }}>
-                            <div>
-                                <div style={{ fontWeight: 'bold', textTransform: 'capitalize' }}>{name.replace('_', ' ')}</div>
-                                <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
-                                    Restarts: {status.restart_count}
+                        <div
+                            key={name}
+                            onClick={() => handleReset(name)}
+                            style={{
+                                display: 'flex',
+                                justifyContent: 'space-between',
+                                alignItems: 'center',
+                                padding: '12px',
+                                background: status.state === 'FAULTY' ? 'rgba(231, 76, 60, 0.15)' : 'rgba(255,255,255,0.05)',
+                                borderRadius: '8px',
+                                border: status.state === 'FAULTY' ? '1px solid var(--danger-color)' : '1px solid transparent',
+                                cursor: 'pointer',
+                                transition: 'all 0.2s'
+                            }}
+                            className="subsystem-row"
+                        >
+                            <div style={{ textAlign: 'left' }}>
+                                <div style={{ fontSize: '0.9rem', fontWeight: 'bold' }}>{name.toUpperCase()}</div>
+                                <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                                    {status.state} • {status.restart_count} restarts
                                 </div>
-                            </div>
-                            <div style={{ textAlign: 'right' }}>
-                                <span className={`status-${status.state}`} style={{ padding: '4px 8px', borderRadius: '4px', fontSize: '0.8rem' }}>
-                                    {status.state}
-                                </span>
-                                {status.state === 'FAULTY' && (
-                                    <div style={{ color: 'var(--danger-color)', fontSize: '0.7rem', marginTop: '4px', fontWeight: 'bold' }}>
-                                        MANUAL RESET REQUIRED
-                                    </div>
-                                )}
                                 {status.last_error && (
-                                    <div style={{ fontSize: '0.7rem', color: 'var(--danger-color)', marginTop: '4px', maxWidth: '150px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={status.last_error}>
+                                    <div style={{ fontSize: '0.65rem', color: 'var(--danger-color)', marginTop: '4px' }}>
                                         {status.last_error}
                                     </div>
                                 )}
+                                {status.state === 'FAULTY' && (
+                                    <div style={{ fontSize: '0.7rem', color: '#fff', background: 'var(--danger-color)', padding: '2px 6px', borderRadius: '4px', marginTop: '6px', textAlign: 'center', fontWeight: 'bold' }}>
+                                        TAP TO RESET
+                                    </div>
+                                )}
                             </div>
+                            <div className={`status-indicator status-${status.state}`}></div>
                         </div>
                     ))}
                     {health && health.status === 'FAULTY' && (

@@ -35,12 +35,6 @@ class CameraService:
 
     def _update(self):
         while not self.stopped:
-            if not health_service.should_retry("camera_rear"):
-                logger.log("CAMERA_REAR", "Supervision limit reached. Capture suspended.", level="CRITICAL",
-                           reason="Subsystem reached max retry limit",
-                           action="Polling suspended until manual reset")
-                break
-
             # Intent Check: Should we use simulation?
             use_sim = self.simulation_mode
             
@@ -60,11 +54,6 @@ class CameraService:
                                action="Staying in simulation mode")
 
             if use_sim:
-                current_sub = health_service.subsystems.get("camera_rear")
-                if current_sub and current_sub.state == "FAULTY":
-                    time.sleep(5)
-                    continue
-
                 self._simulate_frame()
                 health_service.update_status("camera_rear", "ACTIVE", message="Simulation Mode")
                 time.sleep(1/30) # 30 FPS
@@ -77,15 +66,16 @@ class CameraService:
                     # In maintenance mode, we might want to fall back to simulation if real fails
                     if settings.mode == "maintenance":
                          logger.log("CAMERA_REAR", "Hardware connection failed. Falling back to simulation.", level="WARN",
-                                   reason="Hardware init failed", action="Using test pattern")
+                                   reason="Hardware init failed", action="Using test pattern and resetting health state")
                          self.simulation_mode = True # Temporary override
+                         health_service.reset_subsystem("camera_rear")
                     time.sleep(2)
                     continue
 
             ret, frame = self.cap.read()
             if not ret:
                 self.error = "Failed to grab frame"
-                health_service.update_status("camera_rear", "FAULTY", error=self.error)
+                health_service.update_status("camera_rear", "WAITING", error=self.error)
                 logger.log("CAMERA_REAR", "Capture interrupted", level="ERROR", 
                            reason="Frame buffer empty or device disconnected",
                            action="Entering retry loop")

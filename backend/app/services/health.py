@@ -30,10 +30,12 @@ class HealthService:
         sub = self.subsystems[name]
         
         # Supervision Check
-        if sub.restart_count >= self.max_retries and state != "FAULTY":
+        # We allow transitioning to ACTIVE even if at max_retries, 
+        # as it signifies a successful self-healing/recovery.
+        if sub.restart_count >= self.max_retries and state not in ["FAULTY", "ACTIVE"]:
             logger.log("SUPERVISOR", f"Transition to {state} blocked for {name.upper()}", level="WARN",
                        reason=f"Subsystem exceeded max retries ({self.max_retries})",
-                       action="Maintaining FAULTY state until manual intervention")
+                       action="Maintaining FAULTY state until manual intervention or successful ACTIVE heartbeats")
             return
 
         old_state = sub.state
@@ -56,14 +58,30 @@ class HealthService:
                            reason="Hard failure threshold reached", 
                            action="Automatic recovery attempts suspended")
         else:
-            if state == "ACTIVE" and old_state != "ACTIVE":
-                logger.log(name, f"Subsystem reached steady state (ACTIVE)", level="INFO",
-                           reason="Health checks passed", action="Monitoring operational data")
+            if state == "ACTIVE":
+                if sub.restart_count > 0:
+                    logger.log(name, f"Subsystem recovered", level="INFO",
+                               reason="Steady state reached", action="Resetting restart counter")
+                    sub.restart_count = 0
+                
+                if old_state != "ACTIVE":
+                    logger.log(name, f"Subsystem reached steady state (ACTIVE)", level="INFO",
+                               reason="Health checks passed", action="Monitoring operational data")
 
     def should_retry(self, name: str) -> bool:
         if name not in self.subsystems:
             return False
         return self.subsystems[name].restart_count < self.max_retries
+
+    def reset_subsystem(self, name: str):
+        if name in self.subsystems:
+            sub = self.subsystems[name]
+            sub.restart_count = 0
+            sub.state = "WAITING"
+            sub.message = "Manual reset triggered."
+            sub.last_error = None
+            logger.log("SUPERVISOR", f"Manual reset triggered for {name.upper()}", level="INFO",
+                       action="Resetting restart counter and state to WAITING")
 
     def get_health_summary(self):
         is_faulty = any(s.state == "FAULTY" for name, s in self.subsystems.items() if name in ["backend", "networking"])
