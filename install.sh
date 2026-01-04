@@ -70,7 +70,22 @@ else
     echo "⚠️  Warning: 'frontend' directory not found. Skipping UI build."
 fi
 
-# 7. Hardware Permissions
+# 7. CLI Convenience (The "vandash" command)
+echo "⌨️  Setting up 'vandash' command alias..."
+chmod +x launch.sh
+PROJECT_ROOT=$(pwd)
+ALIAS_LINE="alias vandash='$PROJECT_ROOT/launch.sh'"
+
+if ! grep -q "alias vandash=" ~/.bashrc; then
+    echo "$ALIAS_LINE" >> ~/.bashrc
+    echo "✅ Alias 'vandash' added to ~/.bashrc"
+else
+    # Update existing alias if path changed
+    sed -i "s|alias vandash=.*|$ALIAS_LINE|" ~/.bashrc
+    echo "🔄 Updated existing 'vandash' alias."
+fi
+
+# 8. Hardware Permissions
 echo "🔑 Granting user '$USER' hardware access (video, dialout, i2c)..."
 sudo usermod -a -G video $USER || true
 sudo usermod -a -G dialout $USER || true
