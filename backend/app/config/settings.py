@@ -34,6 +34,7 @@ class Settings(BaseModel):
     network: NetworkConfig
     backend: BackendConfig
     camera_rear: CameraConfig
+    camera_front: CameraConfig
     obd: OBDConfig
     supervision: SupervisionConfig
     

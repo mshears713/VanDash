@@ -31,7 +31,8 @@ class HealthResponse(BaseModel):
 from .services.health import health_service
 from .services.system import system_service
 from .services.obd import obd_service
-from .services.camera import camera_service
+from .services.camera import camera_rear, camera_front
+from .services.simulation import simulation_service
 from .logging.logger import logger as dash_logger
 from sse_starlette.sse import EventSourceResponse
 from fastapi.responses import StreamingResponse
@@ -41,26 +42,48 @@ import json
 @app.on_event("startup")
 async def startup_event():
     obd_service.start()
-    camera_service.start()
+    camera_rear.start()
+    camera_front.start()
     dash_logger.log("backend", "VanDash Backend started")
 
 @app.get("/api/camera/rear/status")
-async def get_camera_status():
-    return camera_service.get_status()
+async def get_camera_rear_status():
+    return camera_rear.get_status()
+
+@app.get("/api/camera/front/status")
+async def get_camera_front_status():
+    return camera_front.get_status()
 
 @app.get("/api/camera/rear/stream")
-async def get_camera_stream():
+async def get_camera_rear_stream():
     def frame_generator():
         while True:
-            frame = camera_service.get_frame()
+            frame = camera_rear.get_frame()
             if frame:
                 yield (b'--frame\r\n'
                        b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')
             else:
-                # Provide a small delay if no frame
                 time.sleep(0.1)
-                
     return StreamingResponse(frame_generator(), media_type="multipart/x-mixed-replace; boundary=frame")
+
+@app.get("/api/camera/front/stream")
+async def get_camera_front_stream():
+    def frame_generator():
+        while True:
+            frame = camera_front.get_frame()
+            if frame:
+                yield (b'--frame\r\n'
+                       b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')
+            else:
+                time.sleep(0.1)
+    return StreamingResponse(frame_generator(), media_type="multipart/x-mixed-replace; boundary=frame")
+
+@app.post("/api/system/simulation/toggle")
+async def toggle_simulation():
+    is_active = simulation_service.toggle()
+    dash_logger.log("SYSTEM", f"Simulation mode {'ENABLED' if is_active else 'DISABLED'}", 
+                   level="INFO", action="Toggling global simulation state")
+    return {"active": is_active}
 
 @app.get("/api/health")
 async def get_health():

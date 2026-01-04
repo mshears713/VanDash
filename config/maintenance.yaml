@@ -17,7 +17,10 @@ camera_rear:
   allow_real: true # Set to true to test real hardware on laptop
 
 camera_front:
-  enabled: false
+  device_index: 1
+  resolution: [640, 480]
+  simulation: true
+  allow_real: true
 
 obd:
   port: null
