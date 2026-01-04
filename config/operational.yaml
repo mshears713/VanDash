@@ -16,7 +16,9 @@ camera_rear:
   simulation: false
 
 camera_front:
-  enabled: false
+  device_index: 1
+  resolution: [640, 480]
+  simulation: false
 
 obd:
   port: null

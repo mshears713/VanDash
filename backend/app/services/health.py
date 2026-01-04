@@ -93,10 +93,12 @@ class HealthService:
         elif is_degraded:
             status = "DEGRADED"
             
+        from .simulation import simulation_service
         return {
             "status": status,
             "subsystems": self.subsystems,
-            "timestamp": time.time()
+            "timestamp": time.time(),
+            "simulation_active": simulation_service.active
         }
 
 from ..config.settings import settings

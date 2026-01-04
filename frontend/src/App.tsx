@@ -45,8 +45,18 @@ function App() {
         {currentView === 'dashboard' && <TelemetryGrid />}
 
         {currentView === 'front' && (
-          <div className="glass-panel" style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <h2>Front Camera (Not Configured)</h2>
+          <div className="glass-panel" style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', position: 'relative', overflow: 'hidden' }}>
+            <h2 style={{ position: 'absolute', top: '20px', zIndex: 10 }}>Front View</h2>
+            <div style={{ width: '100%', height: '100%', background: '#000', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <img
+                src="/api/camera/front/stream"
+                alt="Front Camera Stream"
+                style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }}
+                onError={(e) => {
+                  (e.target as HTMLImageElement).src = 'https://via.placeholder.com/640x480?text=Camera+Offline';
+                }}
+              />
+            </div>
           </div>
         )}
 

@@ -18,6 +18,7 @@ interface SubsystemStatus {
 interface HealthData {
     status: string;
     subsystems: Record<string, SubsystemStatus>;
+    simulation_active: boolean;
 }
 
 export const SentinelView: React.FC = () => {
@@ -31,6 +32,14 @@ export const SentinelView: React.FC = () => {
             await fetch(`/api/system/reset/${subsystem}`, { method: 'POST' });
         } catch (e) {
             console.error("Reset failed", e);
+        }
+    };
+
+    const handleToggleSimulation = async () => {
+        try {
+            await fetch('/api/system/simulation/toggle', { method: 'POST' });
+        } catch (e) {
+            console.error("Simulation toggle failed", e);
         }
     };
 
@@ -69,7 +78,24 @@ export const SentinelView: React.FC = () => {
     return (
         <div className="diagnostics-view" style={{ width: '100%', height: '100%', padding: '20px', display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '20px', overflow: 'hidden' }}>
             <section className="glass-panel" style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '16px', overflowY: 'auto' }}>
-                <h3 style={{ borderBottom: '1px solid var(--glass-border)', paddingBottom: '8px' }}>Sentinel</h3>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--glass-border)', paddingBottom: '8px' }}>
+                    <h3>Sentinel</h3>
+                    <button
+                        onClick={handleToggleSimulation}
+                        style={{
+                            background: health?.simulation_active ? 'var(--warning-color)' : 'rgba(255,255,255,0.05)',
+                            color: health?.simulation_active ? 'var(--bg-color)' : 'var(--text-secondary)',
+                            border: '1px solid var(--glass-border)',
+                            padding: '4px 12px',
+                            borderRadius: '4px',
+                            fontSize: '0.7rem',
+                            fontWeight: 'bold',
+                            cursor: 'pointer'
+                        }}
+                    >
+                        {health?.simulation_active ? 'STOP SIMULATION' : 'START SIMULATION'}
+                    </button>
+                </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                     {health && Object.entries(health.subsystems).map(([name, status]) => (
                         <div
