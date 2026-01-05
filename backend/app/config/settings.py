@@ -14,8 +14,11 @@ class BackendConfig(BaseModel):
     log_level: str
 
 class CameraConfig(BaseModel):
-    device_index: int = 0
-    resolution: List[int] = [640, 480]
+    device_path: Optional[str] = None
+    device_index: Optional[int] = None
+    resolution: List[int] = [720, 480]
+    framerate: int = 30
+    pixel_format: str = "MJPG"
     simulation: bool = True
     allow_real: bool = False
 
@@ -61,23 +64,31 @@ def detect_environment():
     return is_wsl, is_mounted
 
 def load_settings() -> Settings:
-    # On Pi, operational.yaml is the law.
-    # On Laptop, we check for maintenance.yaml first.
-    
+    # Config selection order:
+    # 1. VANDASH_CONFIG (explicit path)
+    # 2. VANDASH_PROFILE=operational|maintenance (default operational)
+    # 3. Fallback to operational.yaml, then maintenance.yaml if present
+
     base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../.."))
-    
-    # Priority:
-    # 1. operational.yaml (if it exists and we're on Pi, but we detect by presence)
-    # 2. maintenance.yaml
     
     op_path = os.path.join(base_dir, "config/operational.yaml")
     maint_path = os.path.join(base_dir, "config/maintenance.yaml")
     
     config_file = None
-    if os.path.exists(maint_path):
-        config_file = maint_path
-    elif os.path.exists(op_path):
-        config_file = op_path
+
+    explicit_path = os.getenv("VANDASH_CONFIG")
+    if explicit_path:
+        if not os.path.exists(explicit_path):
+            raise FileNotFoundError(f"VANDASH_CONFIG set to {explicit_path}, but file does not exist")
+        config_file = explicit_path
+    else:
+        profile = os.getenv("VANDASH_PROFILE", "operational").lower()
+        if profile == "maintenance" and os.path.exists(maint_path):
+            config_file = maint_path
+        elif os.path.exists(op_path):
+            config_file = op_path
+        elif os.path.exists(maint_path):
+            config_file = maint_path
     
     if not config_file:
         raise FileNotFoundError("No configuration file found in config/ (maintenance.yaml or operational.yaml)")
