@@ -14,8 +14,11 @@ class BackendConfig(BaseModel):
     log_level: str
 
 class CameraConfig(BaseModel):
-    device_index: int = 0
-    resolution: List[int] = [640, 480]
+    device_path: Optional[str] = None
+    device_index: Optional[int] = None
+    resolution: List[int] = [720, 480]
+    framerate: int = 30
+    pixel_format: str = "MJPG"
     simulation: bool = True
     allow_real: bool = False
 

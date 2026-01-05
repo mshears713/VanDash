@@ -13,12 +13,16 @@ backend:
 camera_rear:
   device_index: 0
   resolution: [640, 480]
+  framerate: 30
+  pixel_format: "MJPG"
   simulation: true
   allow_real: true # Set to true to test real hardware on laptop
 
 camera_front:
   device_index: 1
   resolution: [640, 480]
+  framerate: 30
+  pixel_format: "MJPG"
   simulation: true
   allow_real: true
 
