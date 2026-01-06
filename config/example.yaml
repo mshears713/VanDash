@@ -9,8 +9,10 @@ backend:
   log_level: INFO
 
 camera_rear:
-  device_index: 0
-  resolution: [640, 480]
+  device_path: "/dev/v4l/by-id/usb-MACROSILICON_USB_Video_20200909-video-index0"
+  resolution: [720, 480]
+  framerate: 30
+  pixel_format: "MJPG"
   simulation: false
 
 obd:
