@@ -17,6 +17,7 @@ class CameraService:
         framerate: int,
         pixel_format: str,
         simulation: bool,
+        allow_real: bool,
     ):
         self.name = name
         self.device_path = device_path
@@ -25,6 +26,7 @@ class CameraService:
         self.framerate = framerate
         self.pixel_format = pixel_format
         self.simulation_mode = simulation
+        self.allow_real = allow_real
         
         self.cap = None
         self.frame = None
@@ -53,15 +55,16 @@ class CameraService:
         while not self.stopped:
             from .simulation import simulation_service
             
-            # Global Simulation Override
-            use_sim = self.simulation_mode or simulation_service.active
-            
-            # Maintenance Override logic
-            if not simulation_service.active and settings.mode == "maintenance" and self.simulation_mode:
-                # Add allow_real check if needed, but for simplicity let's use the current pattern
-                pass
+            if simulation_service.active:
+                self._simulate_frame()
+                self._set_state("ACTIVE", message="Simulation Override")
+                time.sleep(1 / self.framerate)
+                continue
 
-            if use_sim:
+            prefer_sim = self.simulation_mode and not self.allow_real
+            allow_sim_fallback = self.simulation_mode and self.allow_real
+
+            if prefer_sim:
                 self._simulate_frame()
                 self._set_state("ACTIVE", message="Simulation Mode")
                 time.sleep(1 / self.framerate)  # Match target FPS
@@ -71,14 +74,24 @@ class CameraService:
             if self.cap is None or not self.cap.isOpened():
                 self._connect()
                 if self.cap is None:
-                    time.sleep(2)
+                    if allow_sim_fallback:
+                        self._simulate_frame()
+                        self._set_state("WAITING", message="Camera unavailable, simulation fallback")
+                        time.sleep(1 / self.framerate)
+                    else:
+                        time.sleep(2)
                     continue
 
             ret, frame = self.cap.read()
             if not ret:
                 self._set_state("WAITING", message="Capture interrupted", error="Failed to grab frame")
                 self._release_capture()
-                time.sleep(1)
+                if allow_sim_fallback:
+                    self._simulate_frame()
+                    self._set_state("ACTIVE", message="Simulation fallback (hardware missing)")
+                    time.sleep(1 / self.framerate)
+                else:
+                    time.sleep(1)
                 continue
 
             self.frame = frame
@@ -145,7 +158,8 @@ class CameraService:
                 action=message or "State change",
             )
 
-        health_error = error if error_changed else None
+        # Always forward errors to supervision so retries increment on every failure.
+        health_error = error if error is not None else None
         health_service.update_status(self.name, state, message=message, error=health_error)
 
         self._last_state = state
@@ -213,7 +227,8 @@ camera_rear = CameraService(
     resolution=tuple(settings.camera_rear.resolution),
     framerate=settings.camera_rear.framerate,
     pixel_format=settings.camera_rear.pixel_format,
-    simulation=settings.camera_rear.simulation
+    simulation=settings.camera_rear.simulation,
+    allow_real=settings.camera_rear.allow_real,
 )
 
 camera_front = CameraService(
@@ -223,5 +238,6 @@ camera_front = CameraService(
     resolution=tuple(settings.camera_front.resolution),
     framerate=settings.camera_front.framerate,
     pixel_format=settings.camera_front.pixel_format,
-    simulation=settings.camera_front.simulation
+    simulation=settings.camera_front.simulation,
+    allow_real=settings.camera_front.allow_real,
 )
